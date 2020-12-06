@@ -11,13 +11,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * this App
- * 1. update mp3s' title and authors with ID3v1 to ID3v2
- * 2. if both ID3v1 and ID3v2 tags are missing, fetch title and author from filename
- * 1. ignore files that have 'feat', '(', but mark them unprocessed by appending '_unprocessed' to thier filename
- * 2. ignore files that have '_unprocessed'
- */
 public class App{
     public static void main(String[] args) throws Exception{
         String newOutputFolderPath = "D:\\nextcloud\\audio\\music_repository\\processed\\";

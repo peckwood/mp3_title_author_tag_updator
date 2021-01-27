@@ -8,7 +8,9 @@ This app
 
 ### TODO
 
+- wav 文件手动复制
+- 空文件pegasus
+- 
 - `catch(Exception e)` 捕获到`java.lang.IllegalArgumentException`
 - 法语词乱码`Soundtrack of Your Life - Pokémon.mp3`
-- 来自不同文件夹的mp3要被复制到对应的文件夹
 

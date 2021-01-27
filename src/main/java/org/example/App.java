@@ -3,72 +3,84 @@ package org.example;
 import com.mpatric.mp3agic.*;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class App{
-    static String processedFolderPath = "D:\\audio\\music_repository\\processed\\";
-    static String unprocessedFolderPath = "D:\\audio\\music_repository\\unprocessed\\";
-    static File repoFolder = new File("D:\\nextcloud\\audio\\music_repository");
+    static String repositoryFolderPath = "D:\\nextcloud\\audio\\music_repository\\";
+    static String normalSongFolderPath = repositoryFolderPath;
+    static String chineseSongFolderPath = repositoryFolderPath + "\\chinese";
+    static String foreignSongFolderPath = repositoryFolderPath + "\\foreign";
+
+    static String outputRepositoryFolderPath = "F:\\audio\\music_repository";
+    static String normalProcessedFolderPath = outputRepositoryFolderPath + "\\";
+    static String chineseProcessedFolderPath = outputRepositoryFolderPath + "\\chinese\\";
+    static String foreignProcessedFolderPath = outputRepositoryFolderPath + "\\foreign\\";
+
+    static String[] ignoredList = {"Geek Music - Sailor Moon_ Opening  Theme_ Moonlight Densetsu.mp3"
+
+    };
+    static List<String> unprocessedFileNames = new ArrayList<>();
 
     public static void main(String[] args) throws Exception{
+        File normalSongRepoFolder = new File(normalSongFolderPath);
+        File chineseSongRepoFolder = new File(chineseSongFolderPath);
+        File foreignSongRepoFolder = new File(foreignSongFolderPath);
 
-        File processedFolder = new File(processedFolderPath);
-        File unprocessedFolder = new File(unprocessedFolderPath);
+        File normalProcessedFolder = new File(normalProcessedFolderPath);
+        File chineseProcessedFolder = new File(chineseProcessedFolderPath);
+        File foreignProcessedFolder = new File(foreignProcessedFolderPath);
 
-        //删除2个文件夹
-        if (processedFolder.exists() && !deleteNotEmptyFolder(processedFolder)) {
-            throw new Exception("无法删除processedFolder");
-        }
-        if (unprocessedFolder.exists() && !deleteNotEmptyFolder(unprocessedFolder)) {
-            throw new Exception("无法删除unprocessedFolder");
-        }
-        if (!processedFolder.mkdirs()) {
-            throw new Exception("无法创建processedFolder");
-        }
-        if (!unprocessedFolder.mkdirs()) {
-            throw new Exception("无法创建unprocessedFolder");
-        }
+        deleteNotEmptyFolder(normalProcessedFolder);
+        normalProcessedFolder.mkdirs();
+        chineseProcessedFolder.mkdirs();
+        foreignProcessedFolder.mkdirs();
 
 
-        File[] mp3FileArray = repoFolder.listFiles((dirFolder, fileName) -> fileName.contains(".mp3"));
-        List<File> mp3FileList = Arrays.asList(mp3FileArray);
+        FilenameFilter mp3FilenameFilter = (dirFolder, fileName) -> fileName.contains(".mp3");
 
-        File chineseSongRepoFolder = new File("D:\\nextcloud\\audio\\music_repository\\chinese");
-        File[] chineseMp3FileArray = chineseSongRepoFolder.listFiles((dirFolder, fileName) -> fileName.contains(".mp3"));
+        File[] mp3FileArray = normalSongRepoFolder.listFiles(mp3FilenameFilter);
+        List<File> normalSongList = Arrays.asList(mp3FileArray);
+        File[] chineseMp3FileArray = chineseSongRepoFolder.listFiles(mp3FilenameFilter);
         List<File> chineseMp3FileList = Arrays.asList(chineseMp3FileArray);
-
-        File foreignSongRepoFolder = new File("D:\\nextcloud\\audio\\music_repository\\foreign");
-        File[] foreignMp3FileArray = foreignSongRepoFolder.listFiles((dirFolder, fileName) -> fileName.contains(".mp3"));
+        File[] foreignMp3FileArray = foreignSongRepoFolder.listFiles(mp3FilenameFilter);
         List<File> foreignMp3FileList = Arrays.asList(foreignMp3FileArray);
 
-        //File processedSongRepoFolder = new File("D:\\nextcloud\\audio\\music_repository\\processed");
-        //File[] processedMp3FileArray = processedSongRepoFolder.listFiles((dirFolder, fileName) -> fileName.contains(".mp3"));
-        //List<File> processedMp3FileList = Arrays.asList(processedMp3FileArray);
+        process(normalSongList, normalProcessedFolderPath);
+        process(chineseMp3FileList, chineseProcessedFolderPath);
+        process(foreignMp3FileList, foreignProcessedFolderPath);
 
-        List<File> allMp3FileList = new ArrayList<>(mp3FileList.size());
-        allMp3FileList.addAll(mp3FileList);
-        allMp3FileList.addAll(chineseMp3FileList);
-        allMp3FileList.addAll(foreignMp3FileList);
+
+        System.out.println("unprocessed: " + unprocessedFileNames);
         //allMp3FileList.addAll(processedMp3FileList);
 
         //System.out.println(mp3FileList.toString());
-        for(File mp3File : allMp3FileList){
+
+//        String[] mp3FilenameArray = repoFolder.list((dirFolder, fileName) -> fileName.contains(".mp3"));
+//        List<String> mp3FilenameList = Arrays.asList(mp3FilenameArray);
+//        mp3FilenameList.stream().forEach(System.out::println);
+
+    }
+
+    private static void process(List<File> mp3FileList, String processedFolderPath) throws Exception{
+        for(File mp3File : mp3FileList){
+            String filename = mp3File.getName();
+//            if(!filename.contains("处处吻")){
+//                continue;
+//            }
+
             Mp3File mp3file = null;
             try{
                 mp3file = new Mp3File(mp3File.getAbsolutePath());
             }catch(Exception e){
-                System.out.println(mp3File.getName() + " " + e.toString());
-                copyFileToUnprocessedFolder(mp3File);
+                copyFileToUnprocessedFolder(mp3File, e);
                 printSeparator(true, mp3File.getName());
                 continue;
             }
-
-            String filename = mp3File.getName();
 
             boolean hasId3v1Tag = mp3file.hasId3v1Tag();
             String titleV1 = null;
@@ -123,27 +135,25 @@ public class App{
                     mp3file.setId3v2Tag(newId3v2Tag);
                 }
                 mp3file.removeId3v1Tag();
-                newId3v2Tag.setTitle(titleV1);
-                newId3v2Tag.setArtist(authorV1);
-                mp3file.save(processedFolderPath + filename);
                 System.out.println("V1 转为 V2: " + filename);
-                fillTitleAndAuthorId3v2(newId3v2Tag, mp3file, titleV1, authorV1, processedFolderPath, filename);
+                try{
+                    fillTitleAndAuthorId3v2(newId3v2Tag, mp3file, titleV1, authorV1, processedFolderPath, filename);
+                }catch(Exception e){
+                    copyFileToUnprocessedFolder(mp3File, e);
+                }
                 // 没有V2 title和author, 从文件名中取
             } else if (author2VIsEmpty || title2VIsEmpty) {
-                String[] ignoredList = {"Geek Music - Sailor Moon_ Opening  Theme_ Moonlight Densetsu.mp3"
-                };
                 showSeperator = true;
                 System.out.println("update from filename: " + filename);
 
                 for(String ignored : ignoredList){
                     // 略过此文件
                     if (ignored.contains(filename)) {
-                        copyFileToUnprocessedFolder(mp3File);
+                        copyFileToUnprocessedFolder(mp3File, new Exception("file in ignored list"));
                     } else {
                         if (filename.contains(" - ")) {
                             if (filename.contains("feat")) {
-                                System.out.println("filename contains 'feat'");
-                                copyFileToUnprocessedFolder(mp3File);
+                                copyFileToUnprocessedFolder(mp3File, new Exception("filename contains 'feat'"));
                                 //待手工处理
                             } else if (filename.contains("_unprocessed")) {
                                 System.out.println("filename contains '_unprocessed'");
@@ -151,21 +161,22 @@ public class App{
                                 String filenameWithoutExtension = filename.substring(0, filename.length() - 4);
                                 String[] splitFilename = filenameWithoutExtension.split(" - ");
                                 if (splitFilename.length != 2) {
-                                    System.out.println("file name length not right");
-                                    copyFileToUnprocessedFolder(mp3File);
+                                    copyFileToUnprocessedFolder(mp3File, new Exception("file name length not right"));
                                 } else {
                                     String newAuthor = splitFilename[0].trim();
                                     String newTitle = splitFilename[1].trim();
                                     System.out.println("new title from filename: [" + newTitle + "]");
                                     System.out.println("new author from filename: [" + newAuthor + "]");
                                     ID3v2 newId3v2Tag = new ID3v24Tag();
-
-                                    fillTitleAndAuthorId3v2(newId3v2Tag, mp3file, newTitle, newAuthor, processedFolderPath, filename);
+                                    try{
+                                        fillTitleAndAuthorId3v2(newId3v2Tag, mp3file, newTitle, newAuthor, processedFolderPath, filename);
+                                    }catch(Exception e){
+                                        copyFileToUnprocessedFolder(mp3File, e);
+                                    }
                                 }
                             }
                         } else {
-                            System.out.println("file doesn't have ' - '");
-                            copyFileToUnprocessedFolder(mp3File);
+                            copyFileToUnprocessedFolder(mp3File, new Exception("file doesn't have ' - '"));
                         }
                     }
                 }
@@ -175,10 +186,6 @@ public class App{
             printSeparator(showSeperator, filename);
 
         }
-//        String[] mp3FilenameArray = repoFolder.list((dirFolder, fileName) -> fileName.contains(".mp3"));
-//        List<String> mp3FilenameList = Arrays.asList(mp3FilenameArray);
-//        mp3FilenameList.stream().forEach(System.out::println);
-
     }
 
     /**
@@ -186,15 +193,14 @@ public class App{
      * @param mp3file
      * @throws Exception
      */
-    private static void copyFileToUnprocessedFolder(File mp3file) throws Exception{
+    private static void copyFileToUnprocessedFolder(File mp3file, Exception e) throws Exception{
         String filename = mp3file.getName();
         //String filenameWithoutExtension = filename.substring(0, filename.length() - 4);
         //String extension = filename.substring(filename.length() - 4);
         //String newFilename = filenameWithoutExtension + "_unprocessed" + extension;
         System.out.println("unprocessed: " + filename);
-
-        File newDestionation = new File(unprocessedFolderPath + filename);
-        Files.copy(mp3file.toPath(), newDestionation.toPath());
+        System.out.println("exception: " + e == null ? "" : e.getMessage());
+        unprocessedFileNames.add(mp3file.getName());
     }
 
     private static void fillTitleAndAuthorId3v2(ID3v2 newId3v2Tag, Mp3File mp3file, String title, String artist, String newOutputFolderPath, String filename) throws IOException, NotSupportedException{
@@ -214,25 +220,31 @@ public class App{
     }
 
     /**
-     * 删除非空文件夹
-     * @param folder
-     * @return
-     */
-    private static boolean deleteNotEmptyFolder(File folder){
-        Arrays.stream(folder.listFiles()).forEach(File::delete);
-        return folder.delete();
-    }
-
-    /**
      * print filename and separator
-     * @param showSeperator
+     * @param showSeparator
      */
-    private static void printSeparator(boolean showSeperator, String filename){
-        if (showSeperator) {
+    private static void printSeparator(boolean showSeparator, String filename){
+        if (showSeparator) {
             System.out.println("file: " + filename);
             System.out.println("=======================================");
             System.out.println();
         }
+    }
+
+    /**
+     * 删除非空文件夹
+     * @param folderToDelete
+     * @throws Exception
+     */
+    private static void deleteNotEmptyFolder(File folderToDelete) throws Exception{
+        for(File file : folderToDelete.listFiles()){
+            if (file.isDirectory()) {
+                deleteNotEmptyFolder(file);
+            } else {
+                file.delete();
+            }
+        }
+        folderToDelete.delete();
     }
 
 }

@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -69,15 +71,15 @@ public class App{
     private static void process(List<File> mp3FileList, String processedFolderPath) throws Exception{
         for(File mp3File : mp3FileList){
             String filename = mp3File.getName();
-//            if(!filename.contains("处处吻")){
-//                continue;
-//            }
+/*            if(!filename.contains("Christmas Is All Around.")){
+                continue;
+            }*/
 
             Mp3File mp3file = null;
             try{
                 mp3file = new Mp3File(mp3File.getAbsolutePath());
             }catch(Exception e){
-                copyFileToUnprocessedFolder(mp3File, e);
+                markFileUnprocessed(mp3File, e);
                 printSeparator(true, mp3File.getName());
                 continue;
             }
@@ -124,6 +126,7 @@ public class App{
                 authorNeedsV1UpdateV2 = true;
             }
 
+            //如果title或authoru是V1, 需要更新到V2
             if ((titleNeedsV1UpdateV2 || authorNeedsV1UpdateV2)) {
                 showSeperator = true;
                 ID3v2 newId3v2Tag;
@@ -139,7 +142,7 @@ public class App{
                 try{
                     fillTitleAndAuthorId3v2(newId3v2Tag, mp3file, titleV1, authorV1, processedFolderPath, filename);
                 }catch(Exception e){
-                    copyFileToUnprocessedFolder(mp3File, e);
+                    markFileUnprocessed(mp3File, e);
                 }
                 // 没有V2 title和author, 从文件名中取
             } else if (author2VIsEmpty || title2VIsEmpty) {
@@ -149,11 +152,11 @@ public class App{
                 for(String ignored : ignoredList){
                     // 略过此文件
                     if (ignored.contains(filename)) {
-                        copyFileToUnprocessedFolder(mp3File, new Exception("file in ignored list"));
+                        markFileUnprocessed(mp3File, new Exception("file in ignored list"));
                     } else {
                         if (filename.contains(" - ")) {
                             if (filename.contains("feat")) {
-                                copyFileToUnprocessedFolder(mp3File, new Exception("filename contains 'feat'"));
+                                markFileUnprocessed(mp3File, new Exception("filename contains 'feat'"));
                                 //待手工处理
                             } else if (filename.contains("_unprocessed")) {
                                 System.out.println("filename contains '_unprocessed'");
@@ -161,7 +164,7 @@ public class App{
                                 String filenameWithoutExtension = filename.substring(0, filename.length() - 4);
                                 String[] splitFilename = filenameWithoutExtension.split(" - ");
                                 if (splitFilename.length != 2) {
-                                    copyFileToUnprocessedFolder(mp3File, new Exception("file name length not right"));
+                                    markFileUnprocessed(mp3File, new Exception("file name length not right"));
                                 } else {
                                     String newAuthor = splitFilename[0].trim();
                                     String newTitle = splitFilename[1].trim();
@@ -171,16 +174,20 @@ public class App{
                                     try{
                                         fillTitleAndAuthorId3v2(newId3v2Tag, mp3file, newTitle, newAuthor, processedFolderPath, filename);
                                     }catch(Exception e){
-                                        copyFileToUnprocessedFolder(mp3File, e);
+                                        markFileUnprocessed(mp3File, e);
                                     }
                                 }
                             }
                         } else {
-                            copyFileToUnprocessedFolder(mp3File, new Exception("file doesn't have ' - '"));
+                            markFileUnprocessed(mp3File, new Exception("file doesn't have ' - '"));
                         }
                     }
                 }
             }//end else if
+            //不需要修改title和author, 直接复制
+            else{
+                Files.copy(mp3File.toPath(), Paths.get(processedFolderPath+filename));
+            }
 
 
             printSeparator(showSeperator, filename);
@@ -193,7 +200,7 @@ public class App{
      * @param mp3file
      * @throws Exception
      */
-    private static void copyFileToUnprocessedFolder(File mp3file, Exception e) throws Exception{
+    private static void markFileUnprocessed(File mp3file, Exception e) throws Exception{
         String filename = mp3file.getName();
         //String filenameWithoutExtension = filename.substring(0, filename.length() - 4);
         //String extension = filename.substring(filename.length() - 4);
